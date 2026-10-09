@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard ya Dalali - DalaliFasta</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background-color: #f1f5f9; color: #1e293b; padding-bottom: 40px; }
+
+    header { background: #ffffff; padding: 16px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 100; }
+    .nav-container { max-width: 800px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+    .brand { font-weight: 800; font-size: 20px; color: #2563eb; }
+    .logout-btn { background: #fee2e2; color: #dc2626; border: none; padding: 8px 14px; border-radius: 8px; font-weight: 600; cursor: pointer; }
+
+    .container { max-width: 800px; margin: 20px auto; padding: 0 16px; }
+
+    .profile-card { background: white; padding: 20px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    .profile-left { display: flex; align-items: center; gap: 16px; }
+    .profile-avatar { width: 60px; height: 60px; border-radius: 50%; background: #2563eb; color: white; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: bold; overflow: hidden; object-fit: cover; }
+    .profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .profile-info h2 { font-size: 18px; font-weight: 700; color: #0f172a; }
+    .profile-info p { font-size: 13px; color: #64748b; }
+    
+    .btn-settings { background: #f8fafc; border: 1px solid #cbd5e1; color: #334155; padding: 8px 14px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px; }
+    .btn-settings:hover { background: #f1f5f9; border-color: #2563eb; color: #2563eb; }
+
+    /* Modal ya Settings */
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; padding: 16px; }
+    .modal-content { background: white; padding: 24px; border-radius: 16px; width: 100%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; font-weight: 700; font-size: 18px; }
+    .close-modal { background: none; border: none; font-size: 20px; cursor: pointer; color: #64748b; }
+
+    .card { background: white; padding: 24px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); margin-bottom: 24px; }
+    .card-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; color: #0f172a; display: flex; align-items: center; gap: 8px; }
+
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: #334155; }
+    .form-control { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 14px; outline: none; }
+    .form-control:focus { border-color: #2563eb; }
+    textarea.form-control { resize: vertical; min-height: 80px; }
+
+    .form-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+
+    .file-input-wrapper { border: 2px dashed #cbd5e1; padding: 20px; text-align: center; border-radius: 12px; cursor: pointer; background: #f8fafc; transition: 0.2s; }
+    .file-input-wrapper:hover { background: #f1f5f9; border-color: #2563eb; }
+
+    .btn-submit { width: 100%; background: #2563eb; color: white; border: none; padding: 14px; border-radius: 10px; font-weight: 700; font-size: 15px; cursor: pointer; margin-top: 10px; }
+    .btn-submit:hover { background: #1d4ed8; }
+    .btn-submit:disabled { background: #94a3b8; cursor: not-allowed; }
+
+    .property-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
+    .property-item { background: white; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; position: relative; }
+    .property-img-container { position: relative; }
+    .property-img { width: 100%; height: 140px; object-fit: cover; background: #e2e8f0; }
+    
+    /* Picha ndogo ya Dalali pembeni kwenye kadi ya nyumba */
+    .property-agent-badge { position: absolute; bottom: -12px; right: 12px; width: 34px; height: 34px; border-radius: 50%; border: 2px solid white; object-fit: cover; background: #2563eb; color: white; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+
+    .property-details { padding: 14px 12px 12px 12px; }
+    .property-price { color: #16a34a; font-weight: 700; font-size: 15px; }
+    .property-title { font-size: 14px; font-weight: 600; color: #1e293b; margin: 4px 0; }
+    .property-location { font-size: 12px; color: #64748b; margin-bottom: 8px; }
+    
+    .property-features { display: flex; align-items: center; justify-content: space-between; border-top: 1px solid #f1f5f9; padding-top: 8px; margin-top: 8px; font-size: 13px; color: #1e293b; font-weight: 600; }
+    .feature-item { display: flex; align-items: center; gap: 4px; }
+
+    .btn-delete { background: #ef4444; color: white; border: none; padding: 6px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; margin-top: 10px; width: 100%; }
+
+    .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.3); border-radius: 50%; border-top-color: #fff; animation: spin 0.8s infinite linear; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="nav-container">
+      <div class="brand">DalaliFasta Dashboard</div>
+      <button class="logout-btn" onclick="logout()">Toka (Logout)</button>
+    </div>
+  </header>
+
+  <div class="container">
+    <!-- Taarifa za Dalali & Kitufe cha Setting/Profaili -->
+    <div class="profile-card">
+      <div class="profile-left">
+        <div class="profile-avatar" id="agent-avatar-container">
+          <span id="agent-initials">D</span>
+        </div>
+        <div class="profile-info">
+          <h2 id="agent-name">Inapakia...</h2>
+          <p id="agent-email-phone">...</p>
+        </div>
+      </div>
+      <button class="btn-settings" onclick="openSettingsModal()">⚙️ Badili Profaili & Picha</button>
+    </div>
+
+    <!-- Modal ya Settings na Kubadili Picha ya Profaili -->
+    <div class="modal" id="settings-modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <span>⚙️ Setting na Profaili</span>
+          <button class="close-modal" onclick="closeSettingsModal()">&times;</button>
+        </div>
+        <form id="update-profile-form" onsubmit="handleUpdateProfile(event)">
+          <div class="form-group">
+            <label>Jina Kamili</label>
+            <input type="text" id="edit-name" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label>Namba ya Simu</label>
+            <input type="text" id="edit-phone" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label>Picha yako ya Profaili</label>
+            <div class="file-input-wrapper" onclick="document.getElementById('edit-avatar-file').click()">
+              <span id="avatar-file-label">📸 Chagua picha mpya</span>
+              <input type="file" id="edit-avatar-file" accept="image/*" style="display: none;" onchange="updateAvatarLabel(this)">
+            </div>
+          </div>
+          <button type="submit" class="btn-submit" id="update-profile-btn">Hifadhi Mabadiliko</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Fomu ya Kutangaza Nyumba -->
+    <div class="card">
+      <div class="card-title">🏠 Post Nyumba Mpya Sokoni</div>
+      <form id="add-property-form" onsubmit="handlePostProperty(event)">
+        
+        <div class="form-group">
+          <label>Kichwa cha Tangazo (Title)</label>
+          <input type="text" id="p-title" class="form-control" placeholder="Mfano: Nyumba ya Vyumba 3 inauzwa" required>
+        </div>
+
+        <div class="form-group">
+          <label>Aina ya Tangazo (Category)</label>
+          <select id="p-category" class="form-control" required>
+            <option value="">-- Chagua Aina --</option>
+            <option value="Nyumba ya Kupanga">Nyumba ya Kupanga</option>
+            <option value="Nyumba Inauzwa">Nyumba Inauzwa</option>
+            <option value="Kiwanja">Kiwanja</option>
+            <option value="Fremu">Fremu</option>
+          </select>
+        </div>
+
+        <div class="form-group form-row">
+          <div>
+            <label>🛏️ Vyumba (Bed)</label>
+            <input type="number" id="p-bedrooms" class="form-control" placeholder="0" min="0" value="0">
+          </div>
+          <div>
+            <label>🛁 Mabafu (Bath)</label>
+            <input type="number" id="p-bathrooms" class="form-control" placeholder="0" min="0" value="0">
+          </div>
+          <div>
+            <label>📐 Ukubwa (m²)</label>
+            <input type="number" id="p-area" class="form-control" placeholder="0" min="0" value="0">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Bei (Tsh)</label>
+          <input type="number" id="p-price" class="form-control" placeholder="Mfano: 350000" required>
+        </div>
+
+        <div class="form-group">
+          <label>Eneo (Location)</label>
+          <input type="text" id="p-location" class="form-control" placeholder="Mfano: Sinza, Dar es Salaam" required>
+        </div>
+
+        <div class="form-group">
+          <label>Maelezo ya Nyumba (Description)</label>
+          <textarea id="p-desc" class="form-control" placeholder="Eleza sifa na maelezo zaidi ya nyumba..."></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>Picha ya Nyumba (Kutoka kwenye simu/kifaa)</label>
+          <div class="file-input-wrapper" onclick="document.getElementById('p-image').click()">
+            <span id="file-label">📸 Bonyeza hapa kuchagua picha</span>
+            <input type="file" id="p-image" accept="image/*" style="display: none;" onchange="updateFileLabel(this)" required>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-submit" id="submit-btn">
+          Post Nyumba Sokoni
+        </button>
+
+      </form>
+    </div>
+
+    <!-- Orodha ya Nyumba za Dalali -->
+    <div class="card">
+      <div class="card-title">📋 Nyumba Zako Ulizopost</div>
+      <div class="property-grid" id="my-properties-list">
+        <p style="color:#64748b; grid-column: 1/-1;">Inapakia nyumba za kwako...</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://fwpzpihwxylnyejthnxq.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3cHpwaWh3eHlsbnllanRobnhxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE0ODE2ODAsImV4cCI6MjEwNzA1NzY4MH0.SMaJxy35YVHs4_Lj1C4v72V069CJEypvxsBhjC65h6I';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let currentAgent = null;
+
+    async function checkAuth() {
+      const savedUser = JSON.parse(localStorage.getItem('dalali_user'));
+
+      if (!savedUser || !savedUser.id) {
+        alert("Hujaingia kwenye mfumo! Tafadhali ingia kwanza.");
+        window.location.href = 'register.html';
+        return;
+      }
+
+      // Vuta taarifa mpya kabisa kutoka Supabase ili kupata avatar ya sasa
+      const { data, error } = await supabaseClient
+        .from('agents')
+        .select('*')
+        .eq('id', savedUser.id)
+        .single();
+
+      if (data) {
+        currentAgent = data;
+        localStorage.setItem('dalali_user', JSON.stringify(data));
+      } else {
+        currentAgent = savedUser;
+      }
+
+      renderAgentInfo();
+      loadMyProperties();
+    }
+
+    function renderAgentInfo() {
+      document.getElementById('agent-name').innerText = currentAgent.full_name || 'Dalali';
+      document.getElementById('agent-email-phone').innerText = `${currentAgent.email || ''} | ${currentAgent.phone_number || ''}`;
+      
+      const avatarContainer = document.getElementById('agent-avatar-container');
+      if (currentAgent.avatar_url) {
+        avatarContainer.innerHTML = `<img src="${currentAgent.avatar_url}" alt="Profaili">`;
+      } else {
+        avatarContainer.innerHTML = `<span id="agent-initials">${(currentAgent.full_name || 'D').charAt(0).toUpperCase()}</span>`;
+      }
+    }
+
+    function openSettingsModal() {
+      document.getElementById('edit-name').value = currentAgent.full_name || '';
+      document.getElementById('edit-phone').value = currentAgent.phone_number || '';
+      document.getElementById('settings-modal').style.display = 'flex';
+    }
+
+    function closeSettingsModal() {
+      document.getElementById('settings-modal').style.display = 'none';
+    }
+
+    function updateAvatarLabel(input) {
+      const label = document.getElementById('avatar-file-label');
+      if (input.files && input.files[0]) {
+        label.innerText = "✅ Imechaguliwa: " + input.files[0].name;
+      } else {
+        label.innerText = "📸 Chagua picha mpya";
+      }
+    }
+
+    async function handleUpdateProfile(e) {
+      e.preventDefault();
+      const btn = document.getElementById('update-profile-btn');
+      const fileInput = document.getElementById('edit-avatar-file');
+      const file = fileInput.files[0];
+      const newName = document.getElementById('edit-name').value;
+      const newPhone = document.getElementById('edit-phone').value;
+
+      btn.disabled = true;
+      btn.innerHTML = `<span class="spinner"></span> Inahifadhi...`;
+
+      try {
+        let avatarUrl = currentAgent.avatar_url;
+
+        // Kama amechagua picha mpya ya profaili
+        if (file) {
+          const fileExt = file.name.split('.').pop();
+          const fileName = `avatar_${currentAgent.id}_${Date.now()}.${fileExt}`;
+          const filePath = `avatars/${fileName}`;
+
+          const { error: uploadError } = await supabaseClient
+            .storage
+            .from('property-images') // Unaweza kutumia bucket hii hii au nyingine
+            .upload(filePath, file, { cacheControl: '3600', upsert: true });
+
+          if (uploadError) throw new Error("Imeshindikana kupakia picha: " + uploadError.message);
+
+          const { data: publicUrlData } = supabaseClient
+            .storage
+            .from('property-images')
+            .getPublicUrl(filePath);
+
+          avatarUrl = publicUrlData.publicUrl;
+        }
+
+        // Sasisha kwenye database table 'agents'
+        const { error: updateError } = await supabaseClient
+          .from('agents')
+          .update({
+            full_name: newName,
+            phone_number: newPhone,
+            avatar_url: avatarUrl
+          })
+          .eq('id', currentAgent.id);
+
+        if (updateError) throw updateError;
+
+        currentAgent.full_name = newName;
+        currentAgent.phone_number = newPhone;
+        currentAgent.avatar_url = avatarUrl;
+        localStorage.setItem('dalali_user', JSON.stringify(currentAgent));
+
+        alert("✅ Profaili yako imesasishwa mafanikio!");
+        closeSettingsModal();
+        renderAgentInfo();
+        loadMyProperties();
+
+      } catch (err) {
+        alert("Kosa: " + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerText = "Hifadhi Mabadiliko";
+      }
+    }
+
+    function updateFileLabel(input) {
+      const label = document.getElementById('file-label');
+      if (input.files && input.files[0]) {
+        label.innerText = "✅ Imechaguliwa: " + input.files[0].name;
+      } else {
+        label.innerText = "📸 Bonyeza hapa kuchagua picha";
+      }
+    }
+
+    async function handlePostProperty(e) {
+      e.preventDefault();
+
+      const btn = document.getElementById('submit-btn');
+      const fileInput = document.getElementById('p-image');
+      const file = fileInput.files[0];
+      const categoryValue = document.getElementById('p-category').value;
+
+      if (!file) {
+        alert("Tafadhali chagua picha kabla ya kupost.");
+        return;
+      }
+
+      if (!categoryValue) {
+        alert("Tafadhali chagua aina ya nyumba/tangazo.");
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = `<span class="spinner"></span> Inapakia Picha na Nyumba...`;
+
+      try {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${currentAgent.id}_${Date.now()}.${fileExt}`;
+        const filePath = `properties/${fileName}`;
+
+        const { data: storageData, error: uploadError } = await supabaseClient
+          .storage
+          .from('property-images')
+          .upload(filePath, file, { cacheControl: '3600', upsert: true });
+
+        if (uploadError) {
+          throw new Error("Imeshindikana kupakia picha: " + uploadError.message);
+        }
+
+        const { data: publicUrlData } = supabaseClient
+          .storage
+          .from('property-images')
+          .getPublicUrl(filePath);
+
+        const imageUrl = publicUrlData.publicUrl;
+
+        const { error: dbError } = await supabaseClient
+          .from('properties')
+          .insert([
+            {
+              title: document.getElementById('p-title').value,
+              category: categoryValue,
+              bedrooms: parseInt(document.getElementById('p-bedrooms').value) || 0,
+              bathrooms: parseInt(document.getElementById('p-bathrooms').value) || 0,
+              area_sqm: parseFloat(document.getElementById('p-area').value) || 0,
+              price: parseFloat(document.getElementById('p-price').value),
+              location: document.getElementById('p-location').value,
+              description: document.getElementById('p-desc').value,
+              image_url: imageUrl,
+              agent_id: currentAgent.id
+            }
+          ]);
+
+        if (dbError) throw dbError;
+
+        alert("🎉 Hongera! Nyumba na picha yako vimepakiwa sokoni kikamilifu!");
+
+        document.getElementById('add-property-form').reset();
+        document.getElementById('file-label').innerText = "📸 Bonyeza hapa kuchagua picha";
+
+        loadMyProperties();
+
+      } catch (err) {
+        alert("Kosa: " + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerText = "Post Nyumba Sokoni";
+      }
+    }
+
+    async function loadMyProperties() {
+      const listContainer = document.getElementById('my-properties-list');
+
+      const { data: properties, error } = await supabaseClient
+        .from('properties')
+        .select('*')
+        .eq('agent_id', currentAgent.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        listContainer.innerHTML = `<p style="color:red; grid-column: 1/-1;">Imeshindikana kupakua nyumba: ${error.message}</p>`;
+        return;
+      }
+
+      if (!properties || properties.length === 0) {
+        listContainer.innerHTML = `<p style="color:#64748b; grid-column: 1/-1;">Hujapost nyumba yoyote bado.</p>`;
+        return;
+      }
+
+      // Picha ya dalali itakayoonekana pembeni kwenye kadi ya nyumba
+      const agentBadgeHtml = currentAgent.avatar_url 
+        ? `<img src="${currentAgent.avatar_url}" class="property-agent-badge" alt="Dalali">`
+        : `<div class="property-agent-badge">${(currentAgent.full_name || 'D').charAt(0).toUpperCase()}</div>`;
+
+      listContainer.innerHTML = properties.map(p => `
+        <div class="property-item">
+          <div class="property-img-container">
+            <img src="${p.image_url}" class="property-img" alt="${p.title}" onerror="this.src='https://via.placeholder.com/300x200?text=Picha+Haipatikani'">
+            ${agentBadgeHtml}
+          </div>
+          <div class="property-details">
+            <div class="property-price">Tsh ${Number(p.price).toLocaleString()}</div>
+            <div class="property-title">${p.title}</div>
+            <div class="property-location">📍 ${p.location} (${p.category || 'Nyumba'})</div>
+            
+            <div class="property-features">
+              <span class="feature-item">🛏️ ${p.bedrooms || 0} Bed</span>
+              <span class="feature-item">🛁 ${p.bathrooms || 0} Bath</span>
+              <span class="feature-item">📐 ${p.area_sqm || 0} m²</span>
+            </div>
+
+            <button class="btn-delete" onclick="deleteProperty('${p.id}')">🗑️ Futa Tangazo</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function deleteProperty(propertyId) {
+      if (!confirm("Je, una uhakika unataka kufuta nyumba hii sokoni?")) return;
+
+      const { error } = await supabaseClient
+        .from('properties')
+        .delete()
+        .eq('id', propertyId);
+
+      if (error) {
+        alert("Imeshindikana kufuta: " + error.message);
+      } else {
+        alert("Nyumba imefutwa sokoni.");
+        loadMyProperties();
+      }
+    }
+
+    function logout() {
+      localStorage.removeItem('dalali_user');
+      window.location.href = 'register.html';
+    }
+
+    checkAuth();
+  </script>
+</body>
+</html>

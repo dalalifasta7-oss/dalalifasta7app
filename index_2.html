@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DalaliFasta - Nyumba, Mali, Viwanja</title>
+  <!-- Supabase JS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      background-color: #f8f9fa;
+      color: #333;
+    }
+
+    /* Skrini ya Kukaribisha (Welcome Screen) yenye Picha ya Logo Yako na Jina */
+    #welcome-splash {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #0d47a1 0%, #1976d2 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      color: white;
+      transition: opacity 0.6s ease;
+    }
+
+    .splash-logo-img {
+      width: 110px;
+      height: 110px;
+      object-fit: contain;
+      background: white;
+      padding: 10px;
+      border-radius: 50%;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+      margin-bottom: 20px;
+      animation: pulseLogo 1.5s infinite alternate;
+    }
+
+    @keyframes pulseLogo {
+      0% { transform: scale(1); }
+      100% { transform: scale(1.08); }
+    }
+
+    .splash-title {
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      text-align: center;
+      padding: 0 20px;
+    }
+
+    /* Navigation Bar */
+    header {
+      background-color: #ffffff;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .navbar {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 15px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Logo ya Picha kwenye Header */
+    .logo-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+    }
+
+    .header-logo-img {
+      width: 40px;
+      height: 40px;
+      object-fit: contain;
+      border-radius: 8px;
+    }
+
+    .logo-text {
+      font-size: 22px;
+      font-weight: 800;
+      color: #0d47a1;
+      text-decoration: none;
+    }
+
+    .logo-text span {
+      color: #16a34a;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 20px;
+      list-style: none;
+      align-items: center;
+    }
+
+    .nav-links a {
+      text-decoration: none;
+      color: #444;
+      font-weight: 600;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover {
+      color: #1565c0;
+    }
+
+    /* Notification Bell Icon */
+    .notif-bell-container {
+      position: relative;
+      cursor: pointer;
+      font-size: 18px;
+    }
+    .notif-badge {
+      position: absolute;
+      top: -6px;
+      right: -8px;
+      background: red;
+      color: white;
+      font-size: 10px;
+      padding: 2px 5px;
+      border-radius: 50%;
+      font-weight: bold;
+    }
+
+    .auth-btns {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn {
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      text-decoration: none;
+    }
+
+    .btn-outline {
+      border: 2px solid #1565c0;
+      color: #1565c0;
+      background: transparent;
+    }
+
+    .btn-primary {
+      background-color: #1565c0;
+      color: white;
+    }
+
+    /* Hero Section */
+    .hero-section {
+      background: linear-gradient(135deg, #0d47a1 0%, #1976d2 100%);
+      color: white;
+      padding: 70px 20px;
+      text-align: center;
+    }
+
+    .hero-title {
+      font-size: 36px;
+      font-weight: 800;
+      margin-bottom: 12px;
+    }
+
+    .search-box {
+      max-width: 700px;
+      margin: 30px auto 0;
+      background: white;
+      padding: 12px;
+      border-radius: 12px;
+      display: flex;
+      gap: 10px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+      flex-wrap: wrap;
+    }
+
+    .search-input, .search-select {
+      flex: 1;
+      min-width: 140px;
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      outline: none;
+      font-size: 14px;
+    }
+
+    .btn-search {
+      background-color: #ffb300;
+      color: #000;
+      font-weight: bold;
+      padding: 12px 25px;
+    }
+
+    /* Property Section */
+    .properties-section {
+      max-width: 1200px;
+      margin: 40px auto;
+      padding: 0 20px;
+    }
+
+    .section-title {
+      font-size: 22px;
+      margin-bottom: 20px;
+      color: #1a1a1a;
+    }
+
+    .property-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 24px;
+    }
+
+    .property-card-link {
+      text-decoration: none;
+      color: inherit;
+      display: block;
+    }
+
+    .property-card {
+      background: white;
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .property-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    }
+
+    .property-img-wrapper {
+      position: relative;
+      width: 100%;
+      height: 190px;
+      background: #eee;
+    }
+
+    .property-img-wrapper img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .category-badge {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      background: rgba(13, 71, 161, 0.85);
+      color: white;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .property-details {
+      padding: 18px;
+    }
+
+    .property-price {
+      font-size: 19px;
+      font-weight: 800;
+      color: #1565c0;
+      margin-bottom: 6px;
+    }
+
+    .property-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #222;
+      margin-bottom: 6px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .property-desc {
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 8px;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .property-location {
+      font-size: 13px;
+      color: #666;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .card-agent-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px solid #eee;
+    }
+
+    .card-agent-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: #1565c0;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: bold;
+      flex-shrink: 0;
+    }
+
+    .card-agent-info {
+      font-size: 12px;
+      color: #555;
+      overflow: hidden;
+    }
+
+    .card-agent-name {
+      font-weight: 700;
+      color: #222;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .card-footer-btn {
+      margin-top: 12px;
+      width: 100%;
+      padding: 10px;
+      background: #e3f2fd;
+      color: #1565c0;
+      text-align: center;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 13px;
+    }
+
+    .status-msg {
+      grid-column: 1 / -1;
+      text-align: center;
+      padding: 40px;
+      font-size: 16px;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Skrini ya Kukaribisha (Welcome Screen) yenye Picha Yako na Maneno -->
+  <div id="welcome-splash">
+    <!-- Badilisha 'logo.png' iwe jina la faili la picha yako uliyoiweka kwenye folda -->
+    <img src="download (9).jfif" alt="Logo" class="splash-logo-img" onerror="this.src='https://via.placeholder.com/100?text=Logo'">
+    <div class="splash-title">Welcome Dalali Fasta App</div>
+  </div>
+
+  <!-- Navbar -->
+  <header>
+    <div class="navbar">
+      <a href="index_2.html" class="logo-container">
+        <img src="download (9).jfif" alt="Logo" class="header-logo-img" onerror="this.src='https://via.placeholder.com/40?text=Logo'">
+        <div class="logo-text">Dalali<span>Fasta</span></div>
+      </a>
+      <ul class="nav-links">
+        <li><a href="index_2.html" onclick="filterByCategory('Nyumba ya Kupanga')">Nyumba</a></li>
+        <li><a href="viwanja.html" onclick="filterByCategory('Viwanja')">Viwanja</a></li>
+        <li><a href="frem.html" onclick="filterByCategory('Fremu')">Fremu</a></li>
+        <li><a href="map.html">Ramani</a></li>
+      
+        <!-- Arifa / Notification Bell -->
+        <li>
+          <div class="notif-bell-container" onclick="showLatestNotification()" title="Arifa kutoka Admin">
+            🔔 <span id="notif-count" class="notif-badge" style="display:none;">1</span>
+          </div>
+        </li>
+      </ul>
+      <div class="auth-btns">
+        <a href="login.html" class="btn btn-outline">Ingia</a>
+        <a href="register.html" class="btn btn-primary">Jisajili</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero / Search Section -->
+  <section class="hero-section">
+    <h1 class="hero-title">Pata au Uuze Nyumba, Mali na Viwanja kwa Haraka</h1>
+    <p>Chagua mali unayotaka kisha uone maelezo yake kikamilifu...</p>
+
+    <div class="search-box">
+      <select id="search-category" class="search-select">
+        <option value="">Aina Zote</option>
+        <option value="Nyumba ya Kupanga">Nyumba ya Kupanga</option>
+        <option value="Nyumba Inauzwa">Nyumba Inauzwa</option>
+        <option value="Kiwanja">Kiwanja</option>
+        <option value="Fremu">Fremu</option>
+      </select>
+      <input type="text" id="search-location" class="search-input" placeholder="Weka eneo (Mfano: Sinza...)">
+      <button class="btn btn-search" onclick="fetchProperties()">Tafuta</button>
+    </div>
+  </section>
+
+  <!-- Property List Section -->
+  <section class="properties-section">
+    <h2 class="section-title">Mali Zilizopo</h2>
+    <div id="property-list" class="property-grid">
+      <div class="status-msg">Inapakia mali kutoka Supabase...</div>
+    </div>
+  </section>
+
+  <!-- Audio ya Sauti ya Ujumbe -->
+  <audio id="notif-sound" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
+
+  <script>
+    // Kuondoa Splash Screen baada ya sekunde 2.5
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        const splash = document.getElementById('welcome-splash');
+        if (splash) {
+          splash.style.opacity = '0';
+          setTimeout(() => splash.style.display = 'none', 600);
+        }
+      }, 2500);
+    });
+
+    const SUPABASE_URL = 'https://fwpzpihwxylnyejthnxq.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3cHpwaWh3eHlsbnllanRobnhxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE0ODE2ODAsImV4cCI6MjEwNzA1NzY4MH0.SMaJxy35YVHs4_Lj1C4v72V069CJEypvxsBhjC65h6I';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let latestNotification = null;
+    let playedSoundIds = JSON.parse(localStorage.getItem('played_sound_ids')) || [];
+
+    async function fetchProperties() {
+      const category = document.getElementById('search-category').value;
+      const location = document.getElementById('search-location').value.trim();
+      const container = document.getElementById('property-list');
+
+      container.innerHTML = '<div class="status-msg">Inatafuta...</div>';
+
+      let query = supabaseClient
+        .from('properties')
+        .select(`
+          *,
+          agents:agent_id (
+            full_name,
+            phone_number,
+            avatar_url
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (category) {
+        query = query.eq('category', category);
+      }
+      if (location) {
+        query = query.ilike('location', `%${location}%`);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        container.innerHTML = `<div class="status-msg" style="color:red;">❌ Kosa la kupakia data: ${error.message}</div>`;
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        container.innerHTML = '<div class="status-msg">Hakuna mali iliyopatikana kwa sasa.</div>';
+        return;
+      }
+
+      container.innerHTML = data.map(item => {
+        const agent = item.agents || {};
+        const agentName = agent.full_name || 'Dalali';
+        const agentPhone = agent.phone_number || 'Haijawekwa';
+        const agentInitial = agentName.charAt(0).toUpperCase();
+        
+        const avatarHtml = agent.avatar_url 
+          ? `<img src="${agent.avatar_url}" class="card-agent-avatar" alt="${agentName}">`
+          : `<div class="card-agent-avatar">${agentInitial}</div>`;
+
+        return `
+          <a href="property-details.html?id=${item.id}" class="property-card-link">
+            <div class="property-card">
+              <div class="property-img-wrapper">
+                <span class="category-badge">${item.category || 'Nyumba'}</span>
+                <img src="${item.image_url || 'https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=600'}" alt="${item.title}">
+              </div>
+              <div class="property-details">
+                <div class="property-price">Tsh ${Number(item.price).toLocaleString()}</div>
+                <div class="property-title">${item.title}</div>
+                <div class="property-desc">${item.description || 'Hakuna maelezo ya ziada.'}</div>
+                <div class="property-location">📍 ${item.location}</div>
+                
+                <div class="card-agent-row">
+                  ${avatarHtml}
+                  <div class="card-agent-info">
+                    <div class="card-agent-name">${agentName}</div>
+                    <div>📞 ${agentPhone}</div>
+                  </div>
+                </div>
+
+                <div class="card-footer-btn">Angalia Maelezo & Ramani →</div>
+              </div>
+            </div>
+          </a>
+        `;
+      }).join('');
+    }
+
+    async function checkForLatestNotification() {
+      try {
+        const { data, error } = await supabaseClient
+          .from('notifications')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (data && data.length > 0) {
+          latestNotification = data[0];
+          const badge = document.getElementById('notif-count');
+
+          if (!latestNotification.is_read) {
+            badge.style.display = 'inline-block';
+
+            if (!playedSoundIds.includes(latestNotification.id)) {
+              const sound = document.getElementById('notif-sound');
+              if (sound) {
+                sound.play().catch(e => console.log("Audio play blocked:", e));
+              }
+              playedSoundIds.push(latestNotification.id);
+              localStorage.setItem('played_sound_ids', JSON.stringify(playedSoundIds));
+            }
+          } else {
+            badge.style.display = 'none';
+          }
+        }
+      } catch (err) {
+        console.error("Hitilafu ya arifa:", err);
+      }
+    }
+
+    async function showLatestNotification() {
+      if (!latestNotification) {
+        alert("Hakuna arifa mpya kutoka kwa Dalali Fasta kwa sasa.");
+        return;
+      }
+
+      await supabaseClient
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('id', latestNotification.id);
+
+      document.getElementById('notif-count').style.display = 'none';
+
+      alert(`🔔 UJUMBE MPYA KUTOKA DALALI FASTA:\n\n📌 ${latestNotification.title}\n\n${latestNotification.message}`);
+    }
+
+    function filterByCategory(cat) {
+      document.getElementById('search-category').value = cat;
+      fetchProperties();
+    }
+
+    fetchProperties();
+    checkForLatestNotification();
+    setInterval(checkForLatestNotification, 15000);
+  </script>
+</body>
+</html>

@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Usimamizi wa Admin - DalaliFasta</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background-color: #f1f5f9; color: #1e293b; padding: 20px; }
+    .container { max-width: 1100px; margin: 0 auto; }
+    
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; background: white; padding: 16px 24px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+    .logo { font-size: 22px; font-weight: 800; color: #2563eb; text-decoration: none; }
+    .logo span { color: #f59e0b; }
+
+    /* Stats Cards */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .stat-card { background: white; padding: 20px; border-radius: 14px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); display: flex; flex-direction: column; gap: 8px; }
+    .stat-title { font-size: 13px; color: #64748b; font-weight: 600; }
+    .stat-value { font-size: 26px; font-weight: 800; color: #0f172a; }
+
+    /* Card za Fomu na Tables */
+    .card { background: white; padding: 24px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); margin-bottom: 24px; }
+    .card h2 { margin-bottom: 16px; font-size: 18px; color: #0f172a; display: flex; align-items: center; gap: 8px; }
+    
+    .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+    .form-control { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 14px; outline: none; }
+    .form-control:focus { border-color: #2563eb; }
+    textarea.form-control { resize: vertical; min-height: 80px; grid-column: 1 / -1; }
+
+    .file-input-wrapper { border: 2px dashed #cbd5e1; padding: 16px; text-align: center; border-radius: 10px; cursor: pointer; background: #f8fafc; grid-column: 1 / -1; }
+    .file-input-wrapper:hover { background: #f1f5f9; border-color: #2563eb; }
+
+    .btn { background-color: #2563eb; color: white; border: none; padding: 12px 20px; border-radius: 10px; font-weight: 700; cursor: pointer; font-size: 14px; }
+    .btn:hover { background-color: #1d4ed8; }
+    .btn-green { background-color: #16a34a; }
+    .btn-green:hover { background-color: #15803d; }
+    .btn-delete { background-color: #dc2626; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 12px; }
+    .btn-delete:hover { background-color: #b91c1c; }
+
+    /* Table Design */
+    .table-container { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; text-align: left; }
+    th, td { padding: 14px 12px; border-bottom: 1px solid #e2e8f0; font-size: 14px; }
+    th { background-color: #f8fafc; color: #475569; font-weight: 600; }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <a href="index.html" class="logo">🏠 Dalali<span>Fasta</span> Admin</a>
+      <a href="index.html" style="text-decoration: none; font-weight: bold; color: #2563eb;">Rudi Nyumbani ↗</a>
+    </header>
+
+    <!-- Takwimu za Mfumo -->
+    <div class="stats-grid">
+      <div class="stat-card" style="border-left: 5px solid #2563eb;">
+        <span class="stat-title">Watu Waliotembelea Mfumo</span>
+        <span class="stat-value" id="stat-visits">0</span>
+      </div>
+      <div class="stat-card" style="border-left: 5px solid #16a34a;">
+        <span class="stat-title">Jumla ya Madalali</span>
+        <span class="stat-value" id="stat-agents">0</span>
+      </div>
+      <div class="stat-card" style="border-left: 5px solid #f59e0b;">
+        <span class="stat-title">Jumla ya Mali Zilizopo</span>
+        <span class="stat-value" id="stat-properties">0</span>
+      </div>
+    </div>
+
+    <!-- 1. Tuma Ujumbe / Arifa kwa Madalali -->
+    <div class="card" style="border-top: 4px solid #16a34a;">
+      <h2>📢 Tuma Ujumbe kwa Madalali Wote</h2>
+      <form id="send-notification-form" class="form-grid">
+        <input type="text" id="notif-title" class="form-control" placeholder="Kichwa cha Ujumbe (Mf. Tangazo Muhimu)" required style="grid-column: 1 / -1;">
+        <textarea id="notif-message" class="form-control" placeholder="Andika ujumbe wako hapa..." required></textarea>
+        <button type="submit" class="btn btn-green" style="grid-column: 1 / -1;">Tuma Ujumbe Sasa</button>
+      </form>
+    </div>
+
+    <!-- 2. Ongeza Mali Mpya (Kwa Kupakia Picha ya Kifaa) -->
+    <div class="card">
+      <h2>🏠 Ongeza Mali Mpya Sokoni</h2>
+      <form id="add-property-form" class="form-grid">
+        <input type="text" id="p-title" class="form-control" placeholder="Kichwa (Mf. Nyumba ya Kupanga)" required>
+        <select id="p-category" class="form-control" required>
+          <option value="">Chagua Aina</option>
+          <option value="Nyumba ya Kupanga">Nyumba ya Kupanga</option>
+          <option value="Nyumba Inauzwa">Nyumba Inauzwa</option>
+          <option value="Kiwanja">Kiwanja</option>
+          <option value="Fremu">Fremu</option>
+        </select>
+        <input type="number" id="p-price" class="form-control" placeholder="Bei (TSh)" required>
+        <input type="text" id="p-location" class="form-control" placeholder="Eneo (Mf. Sinza)" required>
+        
+        <div class="file-input-wrapper" onclick="document.getElementById('p-image-file').click()">
+          <span id="file-label">📸 Chagua Picha ya Nyumba Kutoka Kwenye Kifaa Chako</span>
+          <input type="file" id="p-image-file" accept="image/*" style="display: none;" onchange="updateFileLabel(this)" required>
+        </div>
+
+        <button type="submit" class="btn" style="grid-column: 1 / -1;" id="submit-prop-btn">Hifadhi Mali Mpya</button>
+      </form>
+    </div>
+
+    <!-- 3. Orodha ya Madalali (Pamoja na wa kwanza aliyejisajili, Email na Password) -->
+    <div class="card">
+      <h2>👥 Orodha ya Madalali Waliojisajili (Wakiwemo Waliotangulia)</h2>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Jina Kamili</th>
+              <th>Barua Pepe (Email)</th>
+              <th>Namba ya Simu</th>
+              <th>Neno la Siri (Password)</th>
+              <th>Kitendo</th>
+            </tr>
+          </thead>
+          <tbody id="agents-table-body">
+            <tr><td colspan="5" style="text-align: center;">Inapakia madalali...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 4. Orodha ya Mali Zote -->
+    <div class="card">
+      <h2>📋 Orodha ya Mali Zote Zilizopo</h2>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Picha</th>
+              <th>Kichwa</th>
+              <th>Aina</th>
+              <th>Bei (TSh)</th>
+              <th>Eneo</th>
+              <th>Kitendo</th>
+            </tr>
+          </thead>
+          <tbody id="property-table-body">
+            <tr><td colspan="6" style="text-align: center;">Inapakia mali...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://fwpzpihwxylnyejthnxq.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3cHpwaWh3eHlsbnllanRobnhxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE0ODE2ODAsImV4cCI6MjEwNzA1NzY4MH0.SMaJxy35YVHs4_Lj1C4v72V069CJEypvxsBhjC65h6I';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // Rekodi ziara mpya
+    async function trackVisit() {
+      await supabaseClient.from('site_visits').insert([{}]);
+      loadStats();
+    }
+
+    async function loadStats() {
+      const { count: visitCount } = await supabaseClient.from('site_visits').select('*', { count: 'exact', head: true });
+      const { count: agentCount } = await supabaseClient.from('agents').select('*', { count: 'exact', head: true });
+      const { count: propCount } = await supabaseClient.from('properties').select('*', { count: 'exact', head: true });
+
+      document.getElementById('stat-visits').innerText = visitCount || 0;
+      document.getElementById('stat-agents').innerText = agentCount || 0;
+      document.getElementById('stat-properties').innerText = propCount || 0;
+    }
+
+    // Pakia Orodha ya Madalali wote kutoka Supabase (Bila kuacha hata mmoja)
+    async function loadAgents() {
+      const tbody = document.getElementById('agents-table-body');
+      const { data, error } = await supabaseClient.from('agents').select('*').order('created_at', { ascending: true });
+
+      if (error || !data || data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;">Hakuna madalali waliyojisiitili bado.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = data.map(agent => `
+        <tr>
+          <td><b>${agent.full_name || 'Jina halina'}</b></td>
+          <td>${agent.email || '-'}</td>
+          <td>${agent.phone_number || '-'}</td>
+          <td><code>${agent.password || 'Haijulikani'}</code></td>
+          <td>
+            <button class="btn-delete" onclick="deleteAgent('${agent.id}')">Futa Dalali</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    // Futa Dalali moja kwa moja kwenye database
+    async function deleteAgent(agentId) {
+      if (!confirm("Je, una uhakika unataka kufuta dalali huyu kwenye mfumo?")) return;
+
+      const { error } = await supabaseClient.from('agents').delete().eq('id', agentId);
+      if (error) {
+        alert("Imeshindikana kufuta: " + error.message);
+      } else {
+        alert("Dalali amefutwa mafanikio!");
+        loadAgents();
+        loadStats();
+      }
+    }
+
+    async function loadProperties() {
+      const tbody = document.getElementById('property-table-body');
+      const { data, error } = await supabaseClient.from('properties').select('*').order('created_at', { ascending: false });
+
+      if (error || !data || data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;">Hakuna mali iliyowekwa sokoni.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = data.map(item => `
+        <tr>
+          <td><img src="${item.image_url || 'https://via.placeholder.com/50'}" width="50" height="50" style="object-fit:cover; border-radius:6px;"></td>
+          <td><b>${item.title}</b></td>
+          <td>${item.category}</td>
+          <td>${Number(item.price).toLocaleString()}</td>
+          <td>${item.location}</td>
+          <td>
+            <button class="btn-delete" onclick="deleteProperty('${item.id}')">Futa</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function deleteProperty(propId) {
+      if (!confirm("Je, una uhakika unataka kufuta mali hii?")) return;
+      const { error } = await supabaseClient.from('properties').delete().eq('id', propId);
+      if (error) {
+        alert("Kosa: " + error.message);
+      } else {
+        alert("Mali imefutwa!");
+        loadProperties();
+        loadStats();
+      }
+    }
+
+    function updateFileLabel(input) {
+      const label = document.getElementById('file-label');
+      if (input.files && input.files[0]) {
+        label.innerText = "✅ Imechaguliwa: " + input.files[0].name;
+      }
+    }
+
+    document.getElementById('add-property-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('submit-prop-btn');
+      const fileInput = document.getElementById('p-image-file');
+      const file = fileInput.files[0];
+
+      if (!file) {
+        alert("Tafadhali chagua picha ya nyumba.");
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerText = "Inapakia picha...";
+
+      try {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `admin_prop_${Date.now()}.${fileExt}`;
+        const filePath = `properties/${fileName}`;
+
+        const { error: uploadError } = await supabaseClient.storage
+          .from('property-images')
+          .upload(filePath, file, { upsert: true });
+
+        if (uploadError) throw uploadError;
+
+        const { data: publicUrlData } = supabaseClient.storage
+          .from('property-images')
+          .getPublicUrl(filePath);
+
+        const imageUrl = publicUrlData.publicUrl;
+
+        const { error: dbError } = await supabaseClient.from('properties').insert([{
+          title: document.getElementById('p-title').value,
+          category: document.getElementById('p-category').value,
+          price: parseFloat(document.getElementById('p-price').value),
+          location: document.getElementById('p-location').value,
+          image_url: imageUrl
+        }]);
+
+        if (dbError) throw dbError;
+
+        alert("✅ Mali imeongezwa sokoni mafanikio!");
+        document.getElementById('add-property-form').reset();
+        document.getElementById('file-label').innerText = "📸 Chagua Picha ya Nyumba Kutoka Kwenye Kifaa Chako";
+        loadProperties();
+        loadStats();
+
+      } catch (err) {
+        alert("Kosa: " + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerText = "Hifadhi Mali Mpya";
+      }
+    });
+
+    document.getElementById('send-notification-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const title = document.getElementById('notif-title').value;
+      const message = document.getElementById('notif-message').value;
+
+      const { error } = await supabaseClient.from('notifications').insert([{ title, message, is_read: false }]);
+      if (error) {
+        alert("Kosa: " + error.message);
+      } else {
+        alert("✅ Ujumbe umetumwa kwa madalali wote!");
+        document.getElementById('send-notification-form').reset();
+      }
+    });
+
+    trackVisit();
+    loadAgents();
+    loadProperties();
+  </script>
+</body>
+</html>

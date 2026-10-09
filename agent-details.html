@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Profaili ya Dalali - DalaliFasta</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background-color: #f8f9fa; color: #333; }
+
+    /* Header */
+    header { background: #ffffff; padding: 15px 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); position: sticky; top: 0; z-index: 10; }
+    .navbar { max-width: 600px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; }
+    .back-btn { text-decoration: none; font-size: 20px; color: #333; font-weight: bold; }
+    .header-title { font-size: 18px; font-weight: 700; color: #1e293b; }
+
+    /* Container */
+    .container { max-width: 600px; margin: 20px auto; padding: 0 16px; }
+
+    /* Agent Profile Header */
+    .agent-card { background: white; border-radius: 16px; padding: 24px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; }
+    .avatar { width: 100px; height: 100px; border-radius: 50%; object-fit: cover; margin-bottom: 12px; border: 3px solid #e2e8f0; }
+    .agent-name { font-size: 22px; font-weight: 800; color: #0f172a; margin-bottom: 4px; }
+    .agent-title { font-size: 14px; color: #64748b; margin-bottom: 8px; }
+    .rating { font-size: 13px; color: #eab308; margin-bottom: 20px; }
+
+    /* Action Buttons */
+    .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+    .btn-call { background-color: #10b981; color: white; padding: 14px; border-radius: 10px; text-decoration: none; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .btn-whatsapp { background-color: #25d366; color: white; padding: 14px; border-radius: 10px; text-decoration: none; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 6px; }
+
+    /* Sections */
+    .section-title { font-size: 16px; font-weight: 700; color: #0f172a; margin-bottom: 10px; }
+    .bio-text { font-size: 14px; color: #475569; line-height: 1.6; margin-bottom: 24px; }
+
+    /* Mali Nyingine (Horizontal Scroll) */
+    .properties-scroll { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 10px; margin-bottom: 30px; }
+    .property-thumb { min-width: 130px; height: 130px; border-radius: 12px; object-fit: cover; }
+
+    /* Kitufe cha Kufuta Dalali */
+    .btn-delete-agent { width: 100%; background-color: #ef4444; color: white; border: none; padding: 14px; border-radius: 10px; font-weight: 700; cursor: pointer; font-size: 15px; }
+    .btn-delete-agent:hover { background-color: #dc2626; }
+
+    /* Status Message */
+    .status-msg { text-align: center; padding: 40px; color: #64748b; font-size: 15px; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="navbar">
+      <a href="index.html" class="back-btn">←</a>
+      <div class="header-title">Dalali</div>
+      <div></div>
+    </div>
+  </header>
+
+  <div class="container" id="profile-container">
+    <div class="status-msg">Inapakia taarifa za dalali...</div>
+  </div>
+
+  <script>
+    // Config za Supabase
+    const SUPABASE_URL = 'https://fwpzpihwxylnyejthnxq.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3cHpwaWh3eHlsbnllanRobnhxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE0ODE2ODAsImV4cCI6MjEwNzA1NzY4MH0.SMaJxy35YVHs4_Lj1C4v72V069CJEypvxsBhjC65h6I';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // Validate UUID
+    function validateUUID(id) {
+      const regex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      return regex.test(id);
+    }
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const agentId = urlParams.get('id');
+
+    // 1. Kusoma Taarifa za Dalali Kutoka Supabase
+    async function loadAgentProfile() {
+      const container = document.getElementById('profile-container');
+
+      if (!agentId || !validateUUID(agentId)) {
+        container.innerHTML = `<div class="status-msg" style="color:red;">⚠️ ID ya dalali si sahihi au haijapatikana.</div>`;
+        return;
+      }
+
+      // Omba taarifa za Dalali
+      const { data: agent, error } = await supabaseClient
+        .from('users')
+        .select('*')
+        .eq('id', agentId)
+        .maybeSingle();
+
+      if (error || !agent) {
+        container.innerHTML = `<div class="status-msg" style="color:red;">❌ Dalali huyu hajayapatikana au amefutwa.</div>`;
+        return;
+      }
+
+      // Omba Mali za Dalali Huyu
+      const { data: properties } = await supabaseClient
+        .from('properties')
+        .select('*')
+        .eq('agent_id', agentId);
+
+      const agentPhone = agent.phone_number || '0700000000';
+      const formattedPhone = agentPhone.replace(/^0/, '255');
+
+      // Render Screen 8
+      container.innerHTML = `
+        <div class="agent-card">
+          <img class="avatar" src="${agent.avatar_url || 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=400'}" alt="${agent.full_name}">
+          <h1 class="agent-name">${agent.full_name || 'Juma Msuya'}</h1>
+          <div class="agent-title">Dalali wa Nyumba</div>
+          <div class="rating">⭐⭐⭐⭐⭐ 4.8 (120 Reviews)</div>
+
+          <div class="action-grid">
+            <a href="tel:${agentPhone}" class="btn-call">📞 Piga</a>
+            <a href="https://wa.me/${formattedPhone}" target="_blank" class="btn-whatsapp">💬 WhatsApp</a>
+          </div>
+
+          <div style="text-align: left;">
+            <div class="section-title">Maelezo</div>
+            <p class="bio-text">
+              ${agent.bio || 'Nina uzoefu wa miaka 8 katika mauzo ya nyumba, viwanja na mali. Najua mahitaji yako.'}
+            </p>
+
+            <div class="section-title">Mali Nyingine</div>
+            <div class="properties-scroll">
+              ${properties && properties.length > 0 
+                ? properties.map(p => `<a href="property-details.html?id=${p.id}"><img class="property-thumb" src="${p.image_url}"></a>`).join('')
+                : '<p style="color:#94a3b8; font-size:13px;">Hakuna mali nyingine kwa sasa.</p>'
+              }
+            </div>
+          </div>
+
+          <!-- Kitufe cha Kufuta Dalali -->
+          <button class="btn-delete-agent" onclick="deleteAgent('${agent.id}')">
+            🗑️ Futa Akaunti ya Dalali
+          </button>
+        </div>
+      `;
+    }
+
+    // 2. Function ya Kufuta Dalali Kwenye Supabase
+    async function deleteAgent(id) {
+      const confirmDelete = confirm("Je, una uhakika unataka kufuta akaunti ya dalali huyu na taarifa zake vyote?");
+      if (!confirmDelete) return;
+
+      const { error } = await supabaseClient
+        .from('users')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        alert("Imefeli kufuta: " + error.message);
+      } else {
+        alert("Akaunti ya Dalali imefutwa kikamilifu!");
+        window.location.href = "index.html"; // Rudi Nyumbani
+      }
+    }
+
+    // Anzisha Mchakato
+    loadAgentProfile();
+  </script>
+</body>
+</html>

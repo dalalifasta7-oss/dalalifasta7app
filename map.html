@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Real-Time GPS Navigation - DalaliFasta</title>
+  
+  <!-- Leaflet CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  
+  <!-- Leaflet Routing Machine -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
+  <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
+
+  <!-- Supabase JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', Roboto, sans-serif; }
+    body, html { height: 100%; width: 100%; overflow: hidden; background: #0f172a; }
+
+    #map { width: 100%; height: 100vh; z-index: 1; }
+
+    /* Top Search Bar */
+    .top-search-bar {
+      position: absolute;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 92%;
+      max-width: 420px;
+      z-index: 1000;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(16px);
+      border-radius: 30px;
+      padding: 12px 18px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 15px 35px rgba(0,0,0,0.4);
+      border: 1px solid rgba(255,255,255,0.12);
+    }
+    .top-search-bar input {
+      border: none;
+      outline: none;
+      width: 100%;
+      font-size: 15px;
+      background: transparent;
+      color: #ffffff;
+    }
+    .top-search-bar input::placeholder { color: #94a3b8; }
+
+    /* Real-Time Navigation Banner */
+    .nav-status-bar {
+      position: absolute;
+      top: 76px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 92%;
+      max-width: 420px;
+      z-index: 1000;
+      background: linear-gradient(135deg, #16a34a, #15803d);
+      color: white;
+      padding: 14px 18px;
+      border-radius: 20px;
+      display: none;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 10px 30px rgba(22,163,74,0.4);
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+    .nav-status-bar h3 { font-size: 20px; font-weight: 800; }
+    .nav-status-bar p { font-size: 12px; opacity: 0.9; margin-top: 2px; }
+
+    .stop-nav-btn {
+      background: rgba(255, 255, 255, 0.2);
+      border: none;
+      color: white;
+      padding: 10px 16px;
+      border-radius: 14px;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    /* Bottom Cards Horizontal Slider */
+    .bottom-cards-container {
+      position: absolute;
+      bottom: 20px;
+      left: 0;
+      width: 100%;
+      z-index: 1000;
+      display: flex;
+      gap: 12px;
+      overflow-x: auto;
+      padding: 0 16px;
+      scroll-snap-type: x mandatory;
+    }
+    .bottom-cards-container::-webkit-scrollbar { display: none; }
+
+    .property-card {
+      min-width: 85%;
+      max-width: 360px;
+      scroll-snap-align: center;
+      background: rgba(15, 23, 42, 0.88);
+      backdrop-filter: blur(16px);
+      border-radius: 22px;
+      padding: 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 15px 35px rgba(0,0,0,0.5);
+      border: 1px solid rgba(255,255,255,0.12);
+      color: white;
+    }
+
+    .property-thumb {
+      width: 75px;
+      height: 75px;
+      border-radius: 16px;
+      object-fit: cover;
+      background: #1e293b;
+      flex-shrink: 0;
+    }
+
+    .property-info { flex: 1; }
+    .property-info h4 { font-size: 14px; font-weight: 700; color: #f8fafc; }
+    .property-info .price { font-size: 15px; font-weight: 800; color: #38bdf8; margin: 2px 0 6px 0; }
+
+    .drive-btn {
+      background: #2563eb;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .vehicle-marker {
+      transition: transform 0.2s ease-out;
+    }
+    .leaflet-routing-container { display: none !important; }
+  </style>
+</head>
+<body>
+
+  <!-- Search Bar -->
+  <div class="top-search-bar">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="#94a3b8"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+    <input type="text" id="search-input" placeholder="Tafuta eneo au nyumba..." onkeyup="filterProperties()">
+  </div>
+
+  <!-- Real Time Navigation Status -->
+  <div class="nav-status-bar" id="nav-status">
+    <div>
+      <h3 id="eta-time">-- min</h3>
+      <p id="eta-distance">Inasoma GPS na Njia...</p>
+    </div>
+    <button class="stop-nav-btn" onclick="stopNavigation()">Acha</button>
+  </div>
+
+  <div id="map"></div>
+
+  <!-- Cards -->
+  <div class="bottom-cards-container" id="cards-list"></div>
+
+  <script>
+    const SUPABASE_URL = 'https://fwpzpihwxylnyejthnxq.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3cHpwaWh3eHlsbnllanRobnhxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE0ODE2ODAsImV4cCI6MjEwNzA1NzY4MH0.SMaJxy35YVHs4_Lj1C4v72V069CJEypvxsBhjC65h6I';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let map;
+    let allProperties = [];
+    let markersGroup;
+    let routingControl = null;
+    let driverMarker = null;
+    let watchPositionId = null;
+
+    let currentLat = -6.7924;
+    let currentLng = 39.2083;
+    let activeDestination = null;
+
+    function initMap() {
+      map = L.map('map', { zoomControl: false }).setView([currentLat, currentLng], 16);
+
+      // Provider wa Esri (Ulaini na Haraka)
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Esri',
+        maxZoom: 19
+      }).addTo(map);
+
+      markersGroup = L.layerGroup().addTo(map);
+
+      // Anza kusoma GPS ya simu LIVE
+      startLiveGPS();
+      loadPropertiesFromSupabase();
+    }
+
+    // Mfumo wa Kusoma GPS ya Simu LIVE (Kama Bolt)
+    function startLiveGPS() {
+      if (navigator.geolocation) {
+        watchPositionId = navigator.geolocation.watchPosition(
+          position => {
+            const { latitude, longitude, heading } = position.coords;
+            currentLat = latitude;
+            currentLng = longitude;
+
+            // Update icon ya dereva na mzunguko wake wa mwelekeo (Heading)
+            updateDriverMarker(latitude, longitude, heading || 0);
+
+            // Ramani inamfuata Dereva kwa usahihi (Auto Center Camera)
+            map.panTo([latitude, longitude], { animate: true, duration: 0.5 });
+
+            // Kama yupo kwenye safari, recalculate route kutoka nafasi yake mpya
+            if (activeDestination) {
+              updateRoute(activeDestination.lat, activeDestination.lng);
+            }
+          },
+          error => {
+            console.warn("GPS Error:", error.message);
+          },
+          {
+            enableHighAccuracy: true, // Inalazimisha kutumia GPS halisi wala sio tower location
+            maximumAge: 0,
+            timeout: 5000
+          }
+        );
+      } else {
+        alert("Simu yako haitumii au haijaruhusu GPS Location!");
+      }
+    }
+
+    function updateDriverMarker(lat, lng, heading = 0) {
+      const carHtml = `
+        <div class="vehicle-marker" style="transform: rotate(${heading}deg);">
+          <div style="background:#2563eb; width:42px; height:42px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:0 0 20px rgba(37,99,235,0.9); border:3px solid white;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/></svg>
+          </div>
+        </div>`;
+
+      const carIcon = L.divIcon({
+        className: 'gps-car-icon',
+        html: carHtml,
+        iconSize: [42, 42],
+        iconAnchor: [21, 21]
+      });
+
+      if (!driverMarker) {
+        driverMarker = L.marker([lat, lng], { icon: carIcon, zIndexOffset: 1000 }).addTo(map);
+      } else {
+        driverMarker.setLatLng([lat, lng]);
+        driverMarker.setIcon(carIcon);
+      }
+    }
+
+    function startNavigationTo(destLat, destLng) {
+      activeDestination = { lat: destLat, lng: destLng };
+      document.getElementById('nav-status').style.display = 'flex';
+      updateRoute(destLat, destLng);
+    }
+
+    function updateRoute(destLat, destLng) {
+      if (routingControl) {
+        map.removeControl(routingControl);
+      }
+
+      routingControl = L.Routing.control({
+        waypoints: [
+          L.latLng(currentLat, currentLng),
+          L.latLng(destLat, destLng)
+        ],
+        lineOptions: {
+          styles: [{ color: '#16a34a', opacity: 0.95, weight: 7 }]
+        },
+        createMarker: () => null,
+        addWaypoints: false,
+        draggableWaypoints: false
+      }).addTo(map);
+
+      routingControl.on('routesfound', function(e) {
+        const route = e.routes[0];
+        const summary = route.summary;
+
+        document.getElementById('eta-time').innerText = Math.round(summary.totalTime / 60) + " DAKIKA";
+        document.getElementById('eta-distance').innerText = (summary.totalDistance / 1000).toFixed(1) + " km hadi nyumbani";
+      });
+    }
+
+    function stopNavigation() {
+      activeDestination = null;
+      if (routingControl) map.removeControl(routingControl);
+      document.getElementById('nav-status').style.display = 'none';
+    }
+
+    async function loadPropertiesFromSupabase() {
+      try {
+        const { data, error } = await supabaseClient
+          .from('properties')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        allProperties = data || [];
+        renderProperties(allProperties);
+      } catch (err) {
+        console.error("Error:", err);
+      }
+    }
+
+    function renderProperties(properties) {
+      markersGroup.clearLayers();
+      const listContainer = document.getElementById('cards-list');
+      let cardsHtml = '';
+
+      properties.forEach((p, i) => {
+        let lat = p.latitude || (-6.7924 + (Math.random() - 0.5) * 0.03);
+        let lng = p.longitude || (39.2083 + (Math.random() - 0.5) * 0.03);
+
+        const pinColor = i % 2 === 0 ? '#ef4444' : '#22c55e';
+        const customIcon = L.divIcon({
+          className: 'property-pin',
+          html: `<svg width="34" height="34" viewBox="0 0 24 24" fill="${pinColor}"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>`,
+          iconSize: [34, 34],
+          iconAnchor: [17, 34]
+        });
+
+        const marker = L.marker([lat, lng], { icon: customIcon }).addTo(markersGroup);
+        marker.on('click', () => startNavigationTo(lat, lng));
+
+        cardsHtml += `
+          <div class="property-card">
+            <img src="${p.image_url}" class="property-thumb" alt="${p.title}" onerror="this.src='https://via.placeholder.com/100'">
+            <div class="property-info">
+              <h4>${p.title}</h4>
+              <div class="price">Tsh ${Number(p.price).toLocaleString()}</div>
+            </div>
+            <button class="drive-btn" onclick="startNavigationTo(${lat}, ${lng})">
+              📍 Elekeza GPS
+            </button>
+          </div>
+        `;
+      });
+
+      listContainer.innerHTML = cardsHtml;
+    }
+
+    function filterProperties() {
+      const term = document.getElementById('search-input').value.toLowerCase();
+      const filtered = allProperties.filter(p => 
+        (p.title && p.title.toLowerCase().includes(term)) || 
+        (p.location && p.location.toLowerCase().includes(term))
+      );
+      renderProperties(filtered);
+    }
+
+    window.onload = initMap;
+  </script>
+</body>
+</html>

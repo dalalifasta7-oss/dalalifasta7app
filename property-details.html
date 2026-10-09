@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Maelezo ya Nyumba - DalaliFasta</title>
+  <!-- Supabase JS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background-color: #f8f9fa; color: #333; }
+
+    /* Header Navigation */
+    header { background: #ffffff; box-shadow: 0 2px 10px rgba(0,0,0,0.08); padding: 15px 20px; position: sticky; top: 0; z-index: 100; }
+    .navbar { max-width: 1100px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+    .logo { font-size: 22px; font-weight: 800; color: #0d47a1; text-decoration: none; }
+    .logo span { color: #ffb300; }
+    .back-btn { text-decoration: none; color: #1565c0; font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 5px; }
+
+    /* Layout Card */
+    .details-container { max-width: 850px; margin: 30px auto; padding: 0 20px; }
+    .card { background: #ffffff; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); overflow: hidden; }
+
+    /* Property Image Section */
+    .image-wrapper { position: relative; width: 100%; height: 420px; background: #e0e0e0; }
+    .image-wrapper img { width: 100%; height: 100%; object-fit: cover; }
+    .image-counter { position: absolute; bottom: 15px; right: 20px; background: rgba(0, 0, 0, 0.65); color: #fff; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; }
+    
+    /* Top Action Buttons */
+    .top-actions { position: absolute; top: 15px; right: 20px; display: flex; gap: 10px; }
+    .icon-btn { background: rgba(255, 255, 255, 0.9); border: none; width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.2); font-size: 16px; }
+
+    /* Details Content */
+    .content-body { padding: 30px; }
+    .property-title { font-size: 26px; font-weight: 800; color: #111; margin-bottom: 8px; }
+    .property-price { font-size: 24px; font-weight: 800; color: #1565c0; margin-bottom: 12px; }
+    .property-location { font-size: 15px; color: #666; margin-bottom: 25px; display: flex; align-items: center; gap: 6px; }
+
+    /* Specs Grid (Bed, Bath, Sqm) */
+    .specs-grid { display: flex; gap: 25px; padding: 15px 0; border-top: 1px solid #eee; border-bottom: 1px solid #eee; margin-bottom: 25px; }
+    .spec-item { display: flex; align-items: center; gap: 8px; font-weight: 600; color: #444; font-size: 15px; }
+
+    /* Description */
+    .description-section h3 { font-size: 18px; font-weight: 700; margin-bottom: 10px; color: #222; }
+    .description-text { font-size: 15px; color: #555; line-height: 1.6; margin-bottom: 30px; }
+
+    /* WhatsApp / Contact Button */
+    .btn-contact { display: block; width: 100%; text-align: center; background-color: #1565c0; color: #ffffff; padding: 16px; border-radius: 12px; font-size: 18px; font-weight: 700; text-decoration: none; transition: background 0.2s, transform 0.1s; }
+    .btn-contact:hover { background-color: #0d47a1; }
+
+    /* Status & Error Display */
+    .status-box { padding: 60px 20px; text-align: center; font-size: 16px; font-weight: 600; }
+    .status-error { color: #d32f2f; background: #ffebee; border-radius: 12px; margin: 20px; }
+  </style>
+</head>
+<body>
+
+  <!-- Header Navbar -->
+  <header>
+    <div class="navbar">
+      <a href="index.html" class="back-btn">← Rudi Nyumbani</a>
+      <a href="index.html" class="logo">🏠 Dalali<span>Fasta</span></a>
+    </div>
+  </header>
+
+  <!-- Container ya Maelezo -->
+  <div class="details-container">
+    <div class="card" id="details-card">
+      <div class="status-box">⏳ Inapakia taarifa za mali...</div>
+    </div>
+  </div>
+
+  <script>
+    // Config za Supabase
+    const SUPABASE_URL = 'https://fwpzpihwxylnyejthnxq.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3cHpwaWh3eHlsbnllanRobnhxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE0ODE2ODAsImV4cCI6MjEwNzA1NzY4MH0.SMaJxy35YVHs4_Lj1C4v72V069CJEypvxsBhjC65h6I';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // 1. Function ya Uhakiki wa UUID (Regex Validation)
+    function validateUUID(id) {
+      if (!id) return false;
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      return uuidRegex.test(id);
+    }
+
+    // Chukua ID kutoka URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const propertyId = urlParams.get('id');
+
+    async function fetchPropertyDetails() {
+      const container = document.getElementById('details-card');
+
+      // Check 1: Kama ID haijawekwa kabisa
+      if (!propertyId) {
+        container.innerHTML = `
+          <div class="status-box status-error">
+            ⚠️ Hakuna ID ya mali iliyotolewa.<br><br>
+            <a href="index.html" style="color:#1565c0;">Rudi kwenye Orodha</a>
+          </div>`;
+        return;
+      }
+
+      // Check 2: Uhakiki wa UUID kabla ya kuomba data Supabase
+      if (!validateUUID(propertyId)) {
+        container.innerHTML = `
+          <div class="status-box status-error">
+            🚫 ID uliyoitumia si UUID sahihi.<br>
+            <small style="color:#666;">(ID: ${propertyId})</small><br><br>
+            <a href="index.html" style="color:#1565c0;">Rudi Kwenye Orodha</a>
+          </div>`;
+        return;
+      }
+
+      // Check 3: Omba Data Kutoka Supabase
+      const { data: item, error } = await supabaseClient
+        .from('properties')
+        .select(`
+          *,
+          users (
+            full_name,
+            phone_number
+          )
+        `)
+        .eq('id', propertyId)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Supabase Query Error:', error);
+        container.innerHTML = `
+          <div class="status-box status-error">
+            ❌ Imeshindwa kupakua data: ${error.message}
+          </div>`;
+        return;
+      }
+
+      if (!item) {
+        container.innerHTML = `
+          <div class="status-box status-error">
+            🏚️ Mali hii haijapatikana au imeshafutwa.<br><br>
+            <a href="index.html" style="color:#1565c0;">Angalia Mali Zingine</a>
+          </div>`;
+        return;
+      }
+
+      // Mipangilio ya Simu na Bei
+      const agentPhone = item.users?.phone_number || '0700000000';
+      const formattedPrice = Number(item.price || 0).toLocaleString();
+
+      // Render Muonekano Rasmi
+      container.innerHTML = `
+        <div class="image-wrapper">
+          <img src="${item.image_url || 'https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=800'}" alt="${item.title}">
+          <div class="top-actions">
+            <button class="icon-btn" title="Vipendwa">🤍</button>
+            <button class="icon-btn" title="Sambaza" onclick="navigator.clipboard.writeText(window.location.href); alert('Link imenakiliwa!');">🔗</button>
+          </div>
+          <div class="image-counter">1/1</div>
+        </div>
+
+        <div class="content-body">
+          <h1 class="property-title">${item.title}</h1>
+          <div class="property-price">Tsh ${formattedPrice}</div>
+          <div class="property-location">📍 ${item.location}</div>
+
+          <div class="specs-grid">
+            <div class="spec-item">🛏️ <span>${item.bedrooms || 3} Bed</span></div>
+            <div class="spec-item">🛁 <span>${item.bathrooms || 2} Bath</span></div>
+            <div class="spec-item">📐 <span>200 m²</span></div>
+          </div>
+
+          <div class="description-section">
+            <h3>Maelezo</h3>
+            <p class="description-text">
+              ${item.description || 'Nyumba nzuri ya kisasa yenye vyumba, saloon, jiko, master bedroom, parking na uzio wa kisasa.'}
+            </p>
+          </div>
+
+          <a href="https://wa.me/${agentPhone.replace(/^0/, '255')}?text=Habari,%20nahitaji%20taarifa%20za%20${encodeURIComponent(item.title)}" target="_blank" class="btn-contact">
+            Wasiliana na Dalali
+          </a>
+        </div>
+      `;
+    }
+
+    // Anzisha Mchakato
+    fetchPropertyDetails();
+  </script>
+</body>
+</html>
